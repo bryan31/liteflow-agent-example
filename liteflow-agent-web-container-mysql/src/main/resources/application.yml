@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: liteflow-agent-web-container-mysql
+  config:
+    import: optional:classpath:application-local.yml
+
+server:
+  port: 8900
+liteflow:
+  rule-source: agent/flow.el.xml
+  print-banner: false
+  agent:
+    session-store:
+      type: MYSQL
+      mysql:
+        jdbc-url: "jdbc:mysql://localhost:3306/liteflow_agent"
+        username: "liteflow"
+        password: "liteflow_example"
+        database-name: liteflow_agent
+        table-name: agentscope_sessions
+        create-if-not-exist: true
+    harness:
+      filesystem-backend: DOCKER
+      docker:
+        image: "liteflow-agent-sandbox:node22"
+        workspace-root: /workspace
+        memory-size-bytes: 536870912
+        cpu-count: 1
+        network: bridge
+        # 快照与记忆统一写入 MYSQL，无需 snapshot-root。
+        lifecycle: SESSION_IDLE
+        idle-timeout: 10m
+        eviction-interval: 30s
+        max-cached-sandboxes: 8
+    skills:
+      enabled: true
+      path: classpath:agent/skills
+    openai-compatible:
+      deepseek:
+        api-key: "${DEEPSEEK_API_KEY:}"
+        base-url: "${DEEPSEEK_BASE_URL:https://api.deepseek.com/v1}"
+example:
+  agent:
+    model: "${DEEPSEEK_MODEL:deepseek-flash}"

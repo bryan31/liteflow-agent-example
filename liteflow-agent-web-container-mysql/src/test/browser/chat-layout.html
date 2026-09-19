@@ -1,0 +1,105 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Chat layout regression</title>
+<style>body{font:14px/1.6 system-ui;margin:24px}table{border-collapse:collapse}td,th{padding:6px 12px;text-align:left;border-bottom:1px solid #ddd}iframe{border:1px solid #bbb;display:block;margin-top:20px} .fail{color:#b00}.pass{color:#176d38}</style>
+<h1>Chat layout regression</h1>
+<p id="result" role="status">Running…</p>
+<table><thead><tr><th>Scenario</th><th>Viewport</th><th>Result</th></tr></thead><tbody id="checks"></tbody></table>
+<iframe id="preview" title="Actual chat application"></iframe>
+<script>
+const frame = document.querySelector('#preview');
+const reports = [];
+// Background tabs may suspend animation frames; still allow layout assertions to finish.
+const paint = () => Promise.race([
+    new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+    new Promise(resolve => setTimeout(resolve, 100))
+]);
+async function ready() {
+    const end = Date.now() + 5000;
+    while (Date.now() < end) {
+        if (frame.contentWindow.createTurnView && !frame.contentDocument.querySelector('#new-session')?.disabled) return;
+        await paint();
+    }
+    throw new Error('Application initialization timed out');
+}
+function assertLayout(win, phase, expectAnswer) {
+    const doc = win.document;
+    const viewport = doc.documentElement.clientWidth;
+    const panel = doc.querySelector('.chat-panel').getBoundingClientRect();
+    const messages = doc.querySelector('#messages').getBoundingClientRect();
+    const composer = doc.querySelector('#composer').getBoundingClientRect();
+    if (messages.width > panel.width + 1 || messages.right > viewport + 1) throw new Error(`${phase}: message track escaped (${messages.width}px / ${panel.width}px)`);
+    if (composer.left < 0 || composer.right > viewport + 1 || composer.bottom > win.innerHeight + 1 || composer.width < 200) throw new Error(`${phase}: composer left viewport`);
+    if (doc.documentElement.scrollWidth > viewport + 1) throw new Error(`${phase}: page overflow`);
+    const user = doc.querySelector('.message.user').getBoundingClientRect();
+    if (user.left < panel.left || user.right > viewport + 1) throw new Error(`${phase}: user message moved offscreen`);
+    if (expectAnswer) {
+        const answer = doc.querySelector('.final-answer:not([hidden])');
+        if (!answer || !answer.textContent.includes('检查已完成')) throw new Error(`${phase}: final answer missing`);
+        const rect = answer.getBoundingClientRect();
+        if (rect.right > viewport + 1 || rect.left < panel.left) throw new Error(`${phase}: final answer moved offscreen`);
+        if (rect.bottom <= messages.top || rect.top >= messages.bottom) throw new Error(`${phase}: final answer not visible after completion`);
+    }
+}
+(async () => {
+    const cases = [
+        ['plain reply',1590,1050,false,false,false],
+        ['long tool / completed',1590,1050,true,false,false],
+        ['long tool / error',1590,1050,true,true,false],
+        ['long tool / laptop',1280,720,true,false,false],
+        ['long tool / mobile',390,844,true,false,false],
+        ['long tool / history',1590,1050,true,false,true],
+    ];
+    for (const [name,width,height,tools,error,history] of cases) {
+        frame.width=width; frame.height=height;
+        await new Promise(resolve => { frame.onload=resolve; frame.src='/?layout-case='+encodeURIComponent(name); });
+        try {
+            await ready();
+            const win=frame.contentWindow;
+            win.conversation().innerHTML='';
+            win.appendUserMessage('布局回归：保持消息和输入框可见。');
+            const turn=win.createTurnState();
+            const packets=[];
+            const emit=(name,data)=>{packets.push({name,data});win.applyTurnEvent(turn,{name,data});};
+            const view=history ? null : win.createTurnView(turn);
+            emit('message',{type:'agent.text.delta',replyId:'intro',text:'先检查工作目录。'});
+            if (tools) {
+                emit('action',{type:'agent.tool.call.start',toolCallId:'tool',toolName:'execute'});
+                emit('action',{type:'agent.tool.call.delta',toolCallId:'tool',toolInput:{delta:JSON.stringify({command:'printf '+ 'x'.repeat(4000)})}});
+                emit('action',{type:'agent.tool.result.delta',toolCallId:'tool',toolResult:('long-output-'+ 'y'.repeat(2000)+'\n').repeat(60)});
+                if (view) {win.renderTurn(view);await paint();assertLayout(win,'streaming long output',false);}
+                emit('action',{type:'agent.tool.result.end',toolCallId:'tool',toolState:'success'});
+            }
+            if (error) emit('error',{message:'测试连接中断'});
+            else {
+                emit('message',{type:'agent.text.delta',replyId:'final',text:'检查已完成。'});
+                emit('artifact',{type:'agent.artifact.delivered',artifact:{id:'a'.repeat(64),
+                    fileName:'生成的报告与数据校验结果.csv',size:2048,
+                    downloadUrl:'/api/chat/sessions/layout-fixture/artifacts/'+'a'.repeat(64)}});
+                emit('result',{replyId:'final',text:'检查已完成。'});
+                emit('done',{reply:'检查已完成。',durationMs:2000});
+            }
+            if (history) win.createTurnView(win.turnFromHistory({status:'已完成',events:packets.filter(p=>!['result','done'].includes(p.name)).map(p=>({...p.data,stage:p.name})),durationMs:2000},'检查已完成。'),true);
+            else win.renderTurn(view);
+            await paint();assertLayout(win,error?'error':'completed',!error);
+            if (!error) {
+                const link=win.document.querySelector('.artifact-download');
+                if (!link || !link.textContent.includes('生成的报告') || link.offsetWidth===0) throw new Error('Artifact link missing');
+                if (link.getBoundingClientRect().right > win.document.documentElement.clientWidth+1) throw new Error('Artifact link overflows');
+            }
+            if (tools && !error) {
+                const toggle=win.document.querySelector('.activity-toggle');toggle.click();await paint();assertLayout(win,'expanded',false);
+                toggle.click();win.scrollToBottom();await paint();assertLayout(win,'collapsed again',true);
+            }
+            reports.push({name,width,height,passed:true});
+        } catch (failure) { reports.push({name,width,height,passed:false,error:failure.message}); }
+        const row=document.querySelector('#checks').insertRow();
+        for (const text of [name,`${width} × ${height}`,reports.at(-1).passed?'PASS':reports.at(-1).error]) row.insertCell().textContent=text;
+        row.className=reports.at(-1).passed?'pass':'fail';
+    }
+    const failed=reports.filter(report=>!report.passed);
+    document.querySelector('#result').textContent=`${reports.length-failed.length}/${reports.length} passed`;
+    document.querySelector('#result').dataset.passed=String(!failed.length);
+    window.layoutReports=reports;
+})();
+</script>

@@ -1,0 +1,94 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Execution process UI regression</title>
+<style>body{font:13px/1.6 system-ui;margin:20px;color:#333;background:#fafafa}#toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}button{padding:6px 12px;border:1px solid #ddd;background:white;border-radius:6px;cursor:pointer}#preview{display:block;width:1280px;height:850px;max-width:100%;border:1px solid #ddd;border-radius:8px}#result{margin:8px 0}.pass{color:#176d38}.fail{color:#b00}pre{font-size:11px;white-space:pre-wrap}</style>
+<div id="toolbar"><button id="collapse">收起过程</button><button id="expand">展开过程</button><button id="finish">完成任务</button><button id="fail">模拟失败</button><button id="light">浅色</button><button id="dark">深色</button><button id="mobile">手机宽度</button><button id="desktop">桌面宽度</button></div>
+<p id="result" role="status">Running…</p><pre id="metrics"></pre>
+<iframe id="preview" title="Actual chat application"></iframe>
+<script>
+const frame=document.querySelector('#preview'),result=document.querySelector('#result');
+const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const assert=(ok,message)=>{if(!ok)throw new Error(message);};
+(async()=>{
+    await new Promise(resolve=>{frame.onload=resolve;frame.src='/?execution-ui-fixture';});
+    const win=frame.contentWindow,doc=frame.contentDocument;
+    const deadline=Date.now()+5000;
+    while(doc.querySelector('#new-session').disabled){assert(Date.now()<deadline,'initialization timed out');await pause(20);}
+    win.conversation().innerHTML='';
+    const turn=win.createTurnState(),view=win.createTurnView(turn);
+    const emit=(name,data)=>{win.applyTurnEvent(turn,{name,data});win.renderTurn(view);};
+    emit('reasoning',{replyId:'think',text:'思考内容\n'.repeat(200000)});
+    emit('action',{type:'agent.tool.call.start',toolCallId:'tool',toolName:'execute',toolInput:{command:'python scripts/analyze.py'}});
+    emit('action',{type:'agent.tool.result.delta',toolCallId:'tool',toolResult:'逐行处理日志\n'.repeat(200000)});
+    assert(!view.collapsed&&view.nodes.size===2,'live process should expand the first level');
+    assert(view.toggle.getAttribute('aria-expanded')==='true','expanded accessibility state incorrect');
+    const sweep=view.nodes.get('tool::tool').name.querySelector('.execution-label-sweep');
+    const reduced=win.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(reduced) assert(win.getComputedStyle(sweep).display==='none','reduced motion was ignored');
+    else {
+        assert(win.getComputedStyle(sweep).animationName==='execution-sweep','running label has no gradient sweep');
+        const firstTransform=win.getComputedStyle(sweep).transform;
+        await pause(300);
+        if(doc.visibilityState==='visible') assert(firstTransform!==win.getComputedStyle(sweep).transform,'gradient sweep is not moving');
+    }
+    await pause(20);
+    assert(view.nodes.size===2,'process rows missing');
+    assert([...view.nodes.values()].every(node=>!node.element.open),'child details should default to collapsed');
+    assert(view.body.getBoundingClientRect().height<120,'collapsed process rows are not compact');
+    const tool=view.nodes.get('tool::tool');
+    assert(tool.output.textContent==='','tool output materialized while closed');
+    assert(view.nodes.get('thinking::think:').output.element.textContent==='','thinking materialized while closed');
+    assert(!view.label.classList.contains('is-running')&&tool.name.classList.contains('is-running'),'running indication did not move to the active row');
+    tool.element.open=true;await pause(20);
+    assert(tool.output.textContent.length===12000,'expanded output is not bounded');
+    assert(tool.output.getBoundingClientRect().height<=221,'tool output has unbounded height');
+    const updateStart=performance.now();
+    emit('action',{type:'agent.tool.result.delta',toolCallId:'tool',toolResult:'尾部更新'});
+    const openUpdateMs=performance.now()-updateStart;
+    emit('action',{type:'agent.tool.result.end',toolCallId:'tool',toolState:'success'});
+    emit('result',{text:'## 检查完成\n\n正文独立显示，执行过程自动收起。'});
+    assert(view.collapsed&&view.body.hidden&&!view.answer.hidden,'final answer did not collapse the first level');
+    assert(view.toggle.getAttribute('aria-expanded')==='false','final answer accessibility state incorrect');
+    view.toggle.click();await pause(20);
+    assert(!view.collapsed&&tool.element.open,'reopening lost explicit child expansion');
+    emit('done',{});
+    assert(!view.collapsed,'completion overrode manual reopening');
+    assert(!view.article.querySelector('.execution-label.is-running'),'completion left an animated label');
+    assert(view.answer.querySelector('h2')?.textContent==='检查完成','short answer Markdown regressed');
+    for(const width of [390,1280]){
+        frame.style.width=`${width}px`;await pause(30);
+        assert(doc.documentElement.scrollWidth<=doc.documentElement.clientWidth+1,'horizontal overflow');
+        assert(doc.querySelector('#composer').getBoundingClientRect().bottom<=win.innerHeight+1,'composer escaped viewport');
+    }
+    const failed=win.createTurnState(),failedView=win.createTurnView(failed);
+    win.applyTurnEvent(failed,{name:'reasoning',data:{text:'检查连接'}});
+    win.applyTurnEvent(failed,{name:'error',data:{message:'示例连接中断'}});win.renderTurn(failedView);
+    assert(!failedView.collapsed&&failedView.nodes.size===1&&!failedView.label.classList.contains('is-running'),'failure without a final answer collapsed the process');
+    assert(!failedView.error.hidden,'failure hidden with collapsed process');
+    const many=win.createTurnState();
+    for(let i=0;i<2400;i++)win.applyTurnEvent(many,{name:'action',data:{type:'agent.tool.result.end',toolCallId:String(i),toolName:'read_file',toolState:'success',toolInput:{path:`data/part-${i}.csv`}}});
+    const expandStart=performance.now();const manyView=win.createTurnView(many);const expandMs=performance.now()-expandStart;
+    assert(!manyView.collapsed&&manyView.nodes.size===40,'default expansion was not bounded');
+    assert(manyView.body.querySelectorAll('.execution-step').length===40,'process list is not paginated');
+    manyView.pages.previous.click();assert(manyView.nodes.size===40,'paging kept old process DOM');
+    window.executionUiReport={passed:true,defaultExpanded:true,collapseOnFinal:true,detailDefaultCollapsed:true,gradientAnimation:true,
+        finalAnimationStopped:true,processSteps:2400,mountedRows:40,openUpdateMs:Math.round(openUpdateMs),expandMs:Math.round(expandMs),mobile:true};
+    result.textContent='PASS';result.className='pass';document.querySelector('#metrics').textContent=JSON.stringify(window.executionUiReport);
+    // Leave a clearly labeled, interactive example to inspect the actual application styles.
+    win.conversation().innerHTML='';win.setTheme('light');
+    win.appendUserMessage('示例任务：分析工作区中的销售数据，并生成一份报告。');
+    const demoTurn=win.createTurnState(Date.now()-18000);
+    win.applyTurnEvent(demoTurn,{name:'reasoning',data:{replyId:'demo-thinking',text:'先确认数据字段，再检查缺失值和重复记录，最后汇总月度变化并生成报告。'}});
+    win.applyTurnEvent(demoTurn,{name:'action',data:{type:'agent.tool.result.end',toolCallId:'read',toolName:'read_file',toolInput:{path:'data/sales.csv'},toolResult:'月份,销售额\n2026-07,84000\n2026-08,92000',toolState:'success'}});
+    win.applyTurnEvent(demoTurn,{name:'action',data:{type:'agent.tool.call.start',toolCallId:'run',toolName:'execute',toolInput:{command:'python scripts/analyze.py data/sales.csv'}}});
+    win.applyTurnEvent(demoTurn,{name:'action',data:{type:'agent.tool.result.delta',toolCallId:'run',toolResult:'正在校验数据并计算月度变化…\n'.repeat(12000)}});
+    const demoView=win.createTurnView(demoTurn);win.setBusy(true);window.demoView=demoView;window.demoTurn=demoTurn;
+    document.querySelector('#collapse').onclick=()=>{if(!demoView.collapsed)demoView.toggle.click();};
+    document.querySelector('#expand').onclick=()=>{if(demoView.collapsed)demoView.toggle.click();};
+    document.querySelector('#finish').onclick=()=>{win.applyTurnEvent(demoTurn,{name:'action',data:{type:'agent.tool.result.end',toolCallId:'run',toolState:'success'}});win.applyTurnEvent(demoTurn,{name:'done',data:{reply:'已完成数据检查和月度汇总。\n\n- 数据字段完整。\n- 分析过程可点击上方记录查看。'}});win.renderTurn(demoView);win.setBusy(false);};
+    document.querySelector('#fail').onclick=()=>{win.applyTurnEvent(demoTurn,{name:'error',data:{message:'示例：执行中断，点击过程行查看详情。'}});win.renderTurn(demoView);win.setBusy(false);};
+    document.querySelector('#light').onclick=()=>win.setTheme('light');document.querySelector('#dark').onclick=()=>win.setTheme('dark');
+    document.querySelector('#mobile').onclick=()=>{frame.style.width='390px';};document.querySelector('#desktop').onclick=()=>{frame.style.width='1280px';};
+    setInterval(()=>{if(demoTurn.status==='working')win.renderTurnHeader(demoView);},1000);
+})().catch(error=>{result.textContent=error.stack;result.className='fail';window.executionUiReport={passed:false,error:error.message};});
+</script>

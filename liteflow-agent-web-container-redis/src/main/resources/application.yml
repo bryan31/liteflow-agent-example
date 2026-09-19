@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: liteflow-agent-web-container-redis
+  config:
+    import: optional:classpath:application-local.yml
+
+server:
+  port: 8901
+liteflow:
+  rule-source: agent/flow.el.xml
+  print-banner: false
+  agent:
+    session-store:
+      type: REDIS
+      redis:
+        uri: "redis://localhost:6379/0"
+        key-prefix: "liteflow-agent-web-container-redis:"
+    harness:
+      filesystem-backend: DOCKER
+      docker:
+        image: "liteflow-agent-sandbox:node22"
+        workspace-root: /workspace
+        memory-size-bytes: 536870912
+        cpu-count: 1
+        network: bridge
+        # 快照与记忆统一写入 Redis，无需 snapshot-root。
+        lifecycle: SESSION_IDLE
+        idle-timeout: 10m
+        eviction-interval: 30s
+        max-cached-sandboxes: 8
+    skills:
+      enabled: true
+      path: classpath:agent/skills
+    openai-compatible:
+      deepseek:
+        api-key: "${DEEPSEEK_API_KEY:}"
+        base-url: "${DEEPSEEK_BASE_URL:https://api.deepseek.com/v1}"
+example:
+  agent:
+    model: "${DEEPSEEK_MODEL:deepseek-flash}"

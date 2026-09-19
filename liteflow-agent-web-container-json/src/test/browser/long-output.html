@@ -1,0 +1,96 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Long output regression</title>
+<style>body{font:14px/1.6 system-ui;margin:24px}pre{white-space:pre-wrap}iframe{width:1280px;height:800px;border:1px solid #bbb}.pass{color:#176d38}.fail{color:#b00}</style>
+<h1>Long output regression</h1>
+<p id="result" role="status">Running…</p>
+<pre id="metrics"></pre>
+<iframe id="preview" title="Actual chat application"></iframe>
+<script>
+const frame = document.querySelector('#preview');
+const result = document.querySelector('#result');
+const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+const assert = (ok, message) => { if (!ok) throw new Error(message); };
+(async () => {
+    await new Promise(resolve => { frame.onload = resolve; frame.src = '/?long-output-fixture'; });
+    const win = frame.contentWindow, doc = frame.contentDocument;
+    while (doc.querySelector('#new-session').disabled) await pause(20);
+    win.conversation().innerHTML = '';
+    win.appendUserMessage('长输出压力测试：思考、工具结果和最终回答均保留全文。');
+    const turn = win.createTurnState(), view = win.createTurnView(turn);
+    const originalRender = win.renderTurn;
+    let renders = 0, maxRenderMs = 0, maxInputDelayMs = 0, ticks = 0;
+    win.renderTurn = (...args) => {
+        const start = performance.now(); const value = originalRender(...args);
+        maxRenderMs = Math.max(maxRenderMs, performance.now() - start); renders++; return value;
+    };
+    const renderer = win.createTurnRenderer(view);
+    const emit = (name, data) => { win.applyTurnEvent(turn, { name, data }); renderer.schedule(); };
+    for (let i = 0; i < 12; i++) {
+        emit('action', { type:'agent.tool.call.start', toolCallId:`tool-${i}`, toolName:'execute', toolInput:{command:'generate_report'} });
+        emit('action', { type:'agent.tool.result.end', toolCallId:`tool-${i}`, toolResult:('line '+i+'\n').repeat(20000), toolState:'success' });
+    }
+    renderer.flush();
+    assert(!view.collapsed && view.nodes.size === 12, 'live process was not expanded by default');
+    assert([...view.nodes.values()].every(node => !node.element.open), 'tool details expanded by default');
+    const tool = view.nodes.get('tool::tool-0');
+    tool.element.open = true;
+    await pause(20);
+    let toolMutations = 0;
+    const observer = new win.MutationObserver(records => { toolMutations += records.length; });
+    observer.observe(tool.output, { childList:true, characterData:true, subtree:true });
+    const chunk = '这是一段用于验证长输出性能的内容，包含 **Markdown**、[链接] 和代码。\n'.repeat(4);
+    const count = 6000;
+    const wire = Array.from({length:count}, () => `event: reasoning\ndata: ${JSON.stringify({replyId:'stress',text:chunk})}\n\n`).join('') + 'event: done\ndata: {}\n\n';
+    let previousTick = performance.now();
+    const timer = setInterval(() => {
+        const now = performance.now(); maxInputDelayMs = Math.max(maxInputDelayMs, now-previousTick); previousTick=now;
+        doc.querySelector('#prompt').value = `压力测试期间仍可输入 ${++ticks}`;
+    }, 20);
+    const start = performance.now();
+    const body = new ReadableStream({ start(controller) { controller.enqueue(new TextEncoder().encode(wire)); } });
+    await win.readSse(body, event => {
+        win.applyTurnEvent(turn, event);
+        if (event.name==='done') turn.finalText='# 长报告\n\n'+chunk.repeat(8000);
+        renderer.schedule();
+    });
+    const elapsedMs = performance.now()-start;
+    await pause(30); clearInterval(timer); observer.disconnect();
+    assert(turn.steps.at(-1).text.length===chunk.length*count, 'stream text was lost');
+    assert(renders < count / 10, 'token bursts were not batched');
+    assert(toolMutations===0, 'unchanged tool output was rewritten');
+    assert(ticks>0, 'input did not get an event-loop opportunity');
+    assert(view.answer.textContent.length<=12000, 'final answer DOM is unbounded');
+    assert(view.answerOutput.raw===turn.finalText, 'complete answer was lost');
+    assert(view.collapsed && tool.element.open, 'completion did not collapse the first level');
+    view.toggle.click();
+    assert(!view.collapsed && tool.element.open, 'reopening lost the child expansion choice');
+    assert([...view.nodes.values()].every(node => (node.output?.element?.textContent ?? node.output?.textContent ?? '').length<=12000), 'process DOM is unbounded');
+    const thinkingNode=view.nodes.get('thinking::stress:');
+    assert(!thinkingNode.element.open && thinkingNode.output.raw === '', 'thinking rendered before expansion');
+    thinkingNode.element.open = true;
+    await pause(20);
+    const thinking=thinkingNode.output;
+    thinking.previous.click();
+    const page=thinking.element.textContent;
+    win.updateOutputView(thinking, thinking.raw+'NEW', true);
+    assert(thinking.element.textContent===page,'reading an earlier segment jumped to the latest content');
+    thinking.latest.click();
+    assert(thinking.element.textContent.endsWith('NEW'),'follow latest failed');
+    view.toggle.click();
+    const history=win.createTurnView(turn,true);
+    assert(history.nodes.size===0,'collapsed history eagerly created process nodes');
+    for(const width of [390,1280]) {
+        frame.style.width=`${width}px`;await pause(30);
+        assert(doc.documentElement.scrollWidth<=width+1,'horizontal page overflow');
+        const composer=doc.querySelector('#composer').getBoundingClientRect();
+        assert(composer.bottom<=win.innerHeight+1,'composer left viewport');
+    }
+    frame.style.width='1280px';
+    window.longOutputReport={passed:true,events:count,characters:turn.steps.at(-1).text.length,tools:12,renders,
+        elapsedMs:Math.round(elapsedMs),maxRenderMs:Math.round(maxRenderMs),maxInputDelayMs:Math.round(maxInputDelayMs),
+        inputTicks:ticks,unchangedToolMutations:toolMutations,visibleAnswerCharacters:view.answer.textContent.length,historyProcessNodes:history.nodes.size};
+    result.textContent='PASS';result.className='pass';
+    document.querySelector('#metrics').textContent=JSON.stringify(window.longOutputReport,null,2);
+})().catch(error=>{result.textContent=error.stack;result.className='fail';window.longOutputReport={passed:false,error:error.message};});
+</script>

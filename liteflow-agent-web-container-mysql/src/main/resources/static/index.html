@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>LiteFlow Agent</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="app-shell">
+    <aside id="sidebar" class="sidebar" aria-label="会话导航">
+        <div class="sidebar-top">
+            <a class="brand" href="/" aria-label="LiteFlow Agent 首页"><span class="brand-mark" aria-hidden="true">L<span>F</span></span><span>LiteFlow</span></a>
+            <button id="close-sidebar" class="icon-button sidebar-toggle" type="button" aria-label="收起侧栏" title="收起侧栏"><span class="icon icon-sidebar" aria-hidden="true"></span></button>
+        </div>
+        <button id="new-session" class="nav-button" type="button"><span class="icon icon-compose" aria-hidden="true"></span>新会话</button>
+        <label class="session-search"><span class="icon icon-search" aria-hidden="true"></span><input id="session-search" type="search" placeholder="搜索会话" autocomplete="off" aria-label="搜索会话"></label>
+        <div class="sidebar-heading">会话</div>
+        <nav id="sessions" class="session-list" aria-label="历史会话"></nav>
+        <details class="skills-section" open>
+            <summary>技能<span id="skill-count" class="count"></span></summary>
+            <div id="skills" class="skill-list"></div>
+        </details>
+        <div class="sidebar-bottom"><span class="workspace-label">会话工作区</span><button id="theme-toggle" class="icon-button" type="button" aria-label="切换深色外观" title="切换外观"><span class="icon icon-theme" aria-hidden="true"></span></button></div>
+    </aside>
+    <button id="sidebar-backdrop" class="sidebar-backdrop" type="button" aria-label="关闭侧栏" tabindex="-1"></button>
+    <main class="chat-panel">
+        <header class="chat-header">
+            <div class="header-leading"><button id="open-sidebar" class="icon-button" type="button" aria-label="展开侧栏" title="展开侧栏"><span class="icon icon-sidebar" aria-hidden="true"></span></button><span class="header-workspace">LiteFlow Agent</span><span class="header-divider">/</span><h1><button id="chat-title" class="chat-title-button" type="button" title="点击复制会话 ID" aria-label="复制会话 ID" disabled>新会话</button></h1></div>
+            <div class="header-status">
+                <details id="sandbox-panel" class="sandbox-panel" data-state="loading">
+                    <summary aria-label="查看当前会话的容器状态"><span class="sandbox-dot" aria-hidden="true"></span><span id="sandbox-label" role="status">容器 · 查询中</span><span class="chevron" aria-hidden="true"></span></summary>
+                    <div class="sandbox-popover">
+                        <div class="sandbox-heading"><span>当前会话容器</span><button id="sandbox-refresh" class="text-button" type="button">刷新</button></div>
+                        <p id="sandbox-description">正在查询容器状态…</p>
+                        <dl><dt>容器 ID</dt><dd id="sandbox-id">—</dd><dt>名称</dt><dd id="sandbox-name">—</dd><dt>镜像</dt><dd id="sandbox-image">—</dd><dt>任务</dt><dd id="sandbox-activity">—</dd><dt>最后活动</dt><dd id="sandbox-active-at">—</dd><dt>查询时间</dt><dd id="sandbox-checked-at">—</dd></dl>
+                    </div>
+                </details>
+                <div class="status-pill" role="status"><span id="status-dot" class="status-dot"></span><span id="status-text">就绪</span></div>
+            </div>
+        </header>
+        <div class="conversation-viewport">
+            <section id="messages" class="messages" aria-label="对话消息" aria-live="polite" aria-relevant="additions text"><div class="conversation"></div></section>
+            <button id="jump-to-latest" class="jump-button icon-button" type="button" aria-label="回到最新消息" title="回到最新消息" hidden>↓</button>
+        </div>
+        <div class="composer-wrap">
+            <form id="composer" class="composer">
+                <label class="sr-only" for="prompt">消息</label>
+                <textarea id="prompt" rows="2" placeholder="向 LiteFlow Agent 提问，或描述一个任务…" spellcheck="false"></textarea>
+                <div class="composer-toolbar"><span class="composer-context"><span class="icon icon-agent" aria-hidden="true"></span>Agent<span class="context-divider"></span><span id="composer-skill">技能自动选择</span></span><button id="send-button" class="send-button" type="submit" aria-label="发送消息" title="发送消息"><span class="icon icon-send" aria-hidden="true"></span></button></div>
+            </form>
+            <div class="composer-footer"><span id="composer-help">Enter 发送，Shift + Enter 换行</span><span id="chat-meta">LiteFlow · AgentScope</span></div>
+        </div>
+    </main>
+</div>
+<div id="toast" class="toast" role="status" hidden></div>
+<script src="/stream-state.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

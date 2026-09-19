@@ -1,0 +1,46 @@
+# Maven build output
+target/
+*/target/
+
+# LiteFlow Agent runtime workspace and memory files
+agent-workspaces/
+*/agent-workspaces/
+data/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Java runtime and crash diagnostics
+*.class
+hs_err_pid*
+replay_pid*
+.attach_pid*
+
+# Logs
+*.log
+logs/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+application-local.yml
+application-local.yaml
+application-local.properties
+
+# OS files
+.DS_Store
+Thumbs.db
+
+.classpath
+.project
+
+.settings
+
+# Python test caches
+__pycache__/
+*.py[cod]

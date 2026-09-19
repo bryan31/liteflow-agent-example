@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: liteflow-agent-web-container-json
+  config:
+    import: optional:classpath:application-local.yml
+
+server:
+  port: 8902
+liteflow:
+  rule-source: agent/flow.el.xml
+  print-banner: false
+  agent:
+    session-store:
+      json-workspace-root: "./data/agent-workspaces"
+      type: JSON
+      json-root: "./data/agent-state"
+    harness:
+      filesystem-backend: DOCKER
+      docker:
+        image: "liteflow-agent-sandbox:node22"
+        workspace-root: /workspace
+        memory-size-bytes: 536870912
+        cpu-count: 1
+        network: bridge
+        # SESSION_IDLE 回收后从本地快照恢复业务文件。
+        snapshot-root: "./data/sandbox-snapshots"
+        lifecycle: SESSION_IDLE
+        idle-timeout: 10m
+        eviction-interval: 30s
+        max-cached-sandboxes: 8
+    skills:
+      enabled: true
+      path: classpath:agent/skills
+    openai-compatible:
+      deepseek:
+        api-key: "${DEEPSEEK_API_KEY:}"
+        base-url: "${DEEPSEEK_BASE_URL:https://api.deepseek.com/v1}"
+example:
+  agent:
+    model: "${DEEPSEEK_MODEL:deepseek-flash}"
+  artifacts:
+    root: "./data/artifacts"
