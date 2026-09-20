@@ -19,6 +19,7 @@
         <module>liteflow-agent-web-local-mysql</module>
         <module>liteflow-agent-web-local-redis</module>
         <module>liteflow-agent-web-local-json</module>
+        <module>liteflow-agent-jev-switch</module>
     </modules>
 
     <properties>

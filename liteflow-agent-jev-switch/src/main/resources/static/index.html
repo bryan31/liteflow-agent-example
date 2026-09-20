@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>客服分流演示</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="site-header">
+    <a id="page-brand" class="brand" href="/" aria-label="决策演示首页">客服分流演示</a>
+    <div class="header-actions"><span class="engine-label">Powered by Jev</span><button id="flip-page" class="flip-button" type="button" aria-controls="support-page custom-page"><span class="flip-symbol" aria-hidden="true">↔</span><span id="flip-label">切换到自由决策</span></button><button id="theme-toggle" class="quiet-button" type="button">切换深色</button></div>
+</header>
+<div class="flip-shell"><div id="flip-deck" class="flip-deck" data-page="support">
+<main id="support-page" class="workspace page-face" aria-hidden="false">
+    <section class="page-intro">
+        <div><p class="eyebrow">客户服务 · 意图识别</p><h1>把客户的问题，交给对的服务。</h1><p class="intro-copy">输入一条客户消息，观察 AI 如何选择处理流程，以及它有多确定。</p></div>
+        <div class="runtime-label"><span class="status-dot" aria-hidden="true"></span><span id="runtime-status">正在加载场景</span><code id="model-name">Jev Choice</code></div>
+    </section>
+    <div id="catalog-error" class="error-banner" role="alert" hidden><span id="catalog-error-text"></span><button id="reload-catalog" class="quiet-button" type="button">重新加载</button></div>
+    <div class="workbench">
+        <div class="input-column">
+            <section class="panel composer-panel" aria-labelledby="composer-title">
+                <div class="section-heading"><h2 id="composer-title">客户消息</h2><span class="subtle-label">模拟一次客服接待</span></div>
+                <form id="route-form">
+                    <label class="sr-only" for="message">输入客户问题</label>
+                    <textarea id="message" name="message" rows="5" maxlength="2000" required placeholder="例如：这件衣服尺码太小了，能不能换一件大一号的？" aria-describedby="input-help" disabled></textarea>
+                    <div class="input-meta"><span id="input-help">也可以从下方选择一个预设问题</span><span><span id="character-count">0</span> / 2000</span></div>
+                    <div class="composer-actions"><button id="clear-button" type="button" class="quiet-button" disabled>清空</button><div class="submit-group"><span class="shortcut">⌘ / Ctrl + Enter</span><button id="submit-button" type="submit" class="primary-button" disabled><span id="submit-label">开始分流</span><span id="submit-arrow" aria-hidden="true">↗</span><span id="submit-spinner" class="spinner" hidden></span></button></div></div>
+                </form>
+            </section>
+            <section class="panel preset-panel" aria-labelledby="preset-title">
+                <div class="section-heading"><div class="heading-with-count"><h2 id="preset-title">试试这些客户问题</h2><span id="preset-count" class="count-label">—</span></div><label class="sr-only" for="category">筛选预设场景</label><select id="category" disabled><option value="all">全部场景</option></select></div>
+                <div id="presets" class="preset-list" aria-label="预设问题"><p class="loading-copy">正在准备问题库…</p></div>
+                <div class="preset-footer">选择问题后，点击“开始分流”查看真实判断。</div>
+            </section>
+            <p class="demo-note">演示仅展示分流与组件回复，不会执行实际退款或创建外部工单。</p>
+        </div>
+        <section id="result-panel" class="panel result-panel" aria-labelledby="result-title" tabindex="-1">
+            <div class="section-heading result-heading"><h2 id="result-title">执行结果</h2><span id="result-status" class="result-status">等待输入</span></div>
+            <div id="empty-result" class="empty-result">
+                <div class="empty-flow" aria-hidden="true"><span class="flow-square">输入</span><span class="connector">→</span><span class="flow-square decision-square">判断</span><span class="connector">→</span><span class="flow-square">服务</span></div>
+                <h3>下一条消息，会去哪里？</h3><p>Jev 理解客户诉求，将问题分配到对应服务。<br>运行后，判断依据的数值与执行路径会展示在这里。</p>
+                <div id="service-grid" class="service-grid" aria-label="可用客服流程"></div>
+                <div class="empty-footer"><span class="fallback-line"></span>无法确定时，交给人工协助<span class="fallback-line"></span></div>
+            </div>
+            <div id="loading-result" class="loading-result" role="status" hidden><span class="large-spinner" aria-hidden="true"></span><h3>正在判断客户诉求</h3><p>等待 Jev 返回选择结果与概率分布…</p><p id="loading-elapsed" class="loading-elapsed">已等待 0.0 s</p></div>
+            <div id="error-result" class="error-result" role="alert" hidden><span class="error-mark" aria-hidden="true">!</span><h3>这次分流没有完成</h3><p id="error-message"></p><p class="error-hint">客户消息已保留，可以点击“重新分流”再试一次。</p></div>
+            <div id="completed-result" hidden>
+                <div class="decision-summary"><div class="route-summary"><span class="section-caption">已进入服务流程</span><div class="route-title"><span id="selected-code" class="service-code"></span><h3 id="selected-route"></h3></div><p id="decision-reason" class="decision-reason"></p></div><div class="confidence-stat"><span class="section-caption">模型置信度</span><div><strong id="confidence-value"></strong><span class="percent-sign">%</span></div><span id="threshold-label"></span></div><div class="processing-stat"><span class="section-caption">处理时间</span><div><strong id="processing-time-value">—</strong><span id="processing-time-unit" class="time-unit"></span></div><span class="processing-caption">含 Jev 调用与流程执行</span></div></div>
+                <div class="timing-detail"><span>服务端实测处理时间</span><span id="elapsed-time" class="timing"></span></div>
+                <div class="message-snapshot"><span>本次客户消息</span><p id="submitted-message"></p></div>
+                <section class="probability-section" aria-labelledby="probability-title"><div class="section-heading"><h3 id="probability-title">各选项概率</h3><span class="subtle-label">模型原始分布</span></div><div id="probabilities" class="probability-list"></div><p class="confidence-note">置信度反映判断的确定程度，不等同于准确率，也不同于单个选项的概率。</p></section>
+                <section class="trace-section" aria-labelledby="trace-title"><div class="section-heading"><h3 id="trace-title">执行路径</h3></div><ol id="execution-trace" class="execution-trace"></ol></section>
+                <section class="reply-section" aria-labelledby="reply-title"><div class="reply-header"><span class="reply-indicator" aria-hidden="true"></span><h3 id="reply-title">组件回复</h3><span class="subtle-label">演示处理结果</span></div><p id="component-reply"></p></section>
+                <details class="raw-result"><summary>查看详细结果 <span aria-hidden="true">+</span></summary><pre id="raw-json"></pre></details>
+            </div>
+        </section>
+    </div>
+    <footer class="workspace-footer"><span>从一句话，到一条执行路径。</span><span id="footer-meta">服务场景加载中</span></footer>
+</main>
+<main id="custom-page" class="workspace page-face custom-face" aria-hidden="true" inert>
+    <section class="page-intro">
+        <div><p class="eyebrow">自由决策 · 你的判断标准</p><h1>问题由你定义，选项由你决定。</h1><p class="intro-copy">写下问题，列出选项，让 Jev 帮你做出选择。</p></div>
+        <div class="runtime-label"><span class="status-dot" aria-hidden="true"></span><span id="custom-runtime-status">正在加载配置</span><code id="custom-model-name">Jev Choice</code></div>
+    </section>
+    <div id="custom-config-error" class="error-banner" role="alert" hidden><span id="custom-config-error-text"></span><button id="custom-reload-config" class="quiet-button" type="button">重新加载</button></div>
+    <div class="workbench custom-workbench">
+        <form id="custom-form" class="input-column" aria-busy="false">
+            <section class="panel custom-input-panel">
+                <div class="section-heading"><h2><label for="custom-question">你的问题</label></h2><button id="custom-load-example" class="quiet-button" type="button">填入示例</button></div>
+                <textarea id="custom-question" rows="6" maxlength="4000" required placeholder="例如：用户说希望可以批量导出报表，这条反馈应该归到哪一类？"></textarea>
+            </section>
+            <section class="panel custom-options-panel">
+                <div class="section-heading"><div class="heading-with-count"><h2>候选选项</h2><span id="custom-option-count" class="count-label">2</span></div><span class="subtle-label">2～8 个选项</span></div>
+                <div id="custom-option-list"></div>
+                <button id="custom-add-option" class="add-option-button" type="button"><span aria-hidden="true">+</span>添加一个选项</button>
+                <p id="custom-validation-error" class="validation-error" role="alert" hidden></p>
+                <div class="composer-actions"><button id="custom-reset" type="button" class="quiet-button">清空</button><div class="submit-group"><span class="shortcut">⌘ / Ctrl + Enter</span><button id="custom-submit" type="submit" class="primary-button" disabled><span id="custom-submit-label">开始判断</span><span id="custom-submit-arrow" aria-hidden="true">↗</span><span id="custom-submit-spinner" class="spinner" hidden></span></button></div></div>
+            </section>
+            <p class="demo-note">没有合适选项或置信度不足时，将返回“暂不选择”。切换页面会保留当前输入与结果。</p>
+        </form>
+        <div id="custom-result-host"></div>
+    </div>
+    <footer class="workspace-footer"><span>从你的问题，到可执行的选择。</span><span id="custom-footer-meta">自由决策配置加载中</span></footer>
+</main>
+</div></div>
+<div id="announcement" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+<script type="module" src="/app.mjs"></script>
+<script type="module" src="/custom.mjs"></script>
+<script type="module" src="/page-switch.mjs"></script>
+</body>
+</html>

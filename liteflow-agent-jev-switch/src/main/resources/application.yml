@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: liteflow-agent-jev-switch
+  config:
+    import: optional:classpath:application-local.yml
+
+server:
+  port: 8906
+
+liteflow:
+  rule-source: classpath:flow.el.xml
+  agent:
+    jev:
+      api-key: ${JEV_API_KEY:}
+      base-url: ${JEV_BASE_URL:https://api.typesafe.ai/v1}
+      model: jev-1.13.0
+      timeout: 3s
+      min-confidence: 0.6
