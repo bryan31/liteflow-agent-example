@@ -12,7 +12,7 @@
 | [liteflow-agent-web-local-json](liteflow-agent-web-local-json/README.md) | `LocalJsonAgentApplication` | Agent 在宿主机执行，本地 JSON 与目录保存数据，无需数据库或 Docker，端口 8905 |
 | [liteflow-agent-jev-switch](liteflow-agent-jev-switch/README.md) | `JevSwitchApplication` | 客服分流与自由决策翻转页面、14 条客服预设、可自定义问题和选项，展示置信度、概率和执行路径，端口 8906 |
 
-各模块均包含完整源码，可独立构建和运行。六个 Web 聊天示例之外，Jev 示例提供独立的客服分流页面与 HTTP 接口，只需配置 `JEV_API_KEY`，无需数据库、Docker 或聊天模型凭据。三个 `web-container-*` 模块的 HTML、CSS、前端脚本与 MySQL 示例一致，包括会话搜索、历史加载、深浅色切换、流式思考与工具详情、容器状态和附件下载。
+各模块均包含完整源码，可独立构建和运行。六个 Web 聊天示例之外，Jev 示例提供独立的客服分流页面与 HTTP 接口，支持 Jev 官方接口与 OpenRouter。官方入口配置 `JEV_API_KEY`；OpenRouter 入口启用 `openrouter` profile 并配置 `OPENROUTER_API_KEY`，无需数据库、Docker 或聊天模型凭据。三个 `web-container-*` 模块的 HTML、CSS、前端脚本与 MySQL 示例一致，包括会话搜索、历史加载、深浅色切换、流式思考与工具详情、容器状态和附件下载。
 
 各模块通过 `spring.application.name` 声明模块名。框架的 `liteflow.agent.application-name` 默认沿用该名称隔离 Agent 数据，`liteflow.agent.execution-timeout` 默认是 10 分钟；示例省略这两项 Agent 配置。
 
