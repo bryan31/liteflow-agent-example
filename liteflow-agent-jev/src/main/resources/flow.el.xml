@@ -9,4 +9,7 @@
                 customOption5, customOption6, customOption7, customOption8)
             .DEFAULT(customUndecided);
     </chain>
+    <chain name="judge">
+        IF(statementJudge, judgeYes, judgeNo);
+    </chain>
 </flow>

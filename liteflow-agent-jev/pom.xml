@@ -8,8 +8,8 @@
         <artifactId>liteflow-agent-example</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
-    <artifactId>liteflow-agent-jev-switch</artifactId>
-    <name>liteflow-agent-jev-switch</name>
+    <artifactId>liteflow-agent-jev</artifactId>
+    <name>liteflow-agent-jev</name>
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>

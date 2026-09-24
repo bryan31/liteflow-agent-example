@@ -11,9 +11,9 @@
 <body>
 <header class="site-header">
     <a id="page-brand" class="brand" href="/" aria-label="决策演示首页">客服分流演示</a>
-    <div class="header-actions"><span class="engine-label">Powered by Jev</span><button id="flip-page" class="flip-button" type="button" aria-controls="support-page custom-page"><span class="flip-symbol" aria-hidden="true">↔</span><span id="flip-label">切换到自由决策</span></button><button id="theme-toggle" class="quiet-button" type="button">切换深色</button></div>
+    <div class="header-actions"><span class="engine-label">Powered by Jev</span><button id="flip-page" class="flip-button" type="button" aria-controls="support-page judge-page custom-page"><span class="flip-symbol" aria-hidden="true">↔</span><span id="flip-label">切换到是非判断</span></button><button id="theme-toggle" class="quiet-button" type="button">切换深色</button></div>
 </header>
-<div class="flip-shell"><div id="flip-deck" class="flip-deck" data-page="support">
+<div class="flip-shell"><div id="flip-deck" class="flip-deck">
 <main id="support-page" class="workspace page-face" aria-hidden="false">
     <section class="page-intro">
         <div><p class="eyebrow">客户服务 · 意图识别</p><h1>把客户的问题，交给对的服务。</h1><p class="intro-copy">输入一条客户消息，观察 AI 如何选择处理流程，以及它有多确定。</p></div>
@@ -61,7 +61,55 @@
     </div>
     <footer class="workspace-footer"><span>从一句话，到一条执行路径。</span><span id="footer-meta">服务场景加载中</span></footer>
 </main>
-<main id="custom-page" class="workspace page-face custom-face" aria-hidden="true" inert>
+<main id="judge-page" class="workspace page-face" aria-hidden="true" inert hidden>
+    <section class="page-intro">
+        <div><p class="eyebrow">是非判断 · 概率即答案</p><h1>一个是非问题，一个概率答案。</h1><p class="intro-copy">写下判断标准和待判断的内容，观察 AI 给出的“是”的概率，以及流程走进哪个分支。</p></div>
+        <div class="runtime-label"><span class="status-dot" aria-hidden="true"></span><span id="judge-runtime-status">正在加载配置</span><code id="judge-model-name">Jev Noul</code></div>
+    </section>
+    <div id="judge-config-error" class="error-banner" role="alert" hidden><span id="judge-config-error-text"></span><button id="judge-reload-config" class="quiet-button" type="button">重新加载</button></div>
+    <div class="workbench">
+        <div class="input-column">
+            <section class="panel composer-panel" aria-labelledby="judge-composer-title">
+                <div class="section-heading"><h2 id="judge-composer-title">判断标准与内容</h2><span class="subtle-label">一个是非问题</span></div>
+                <form id="judge-form">
+                    <label class="sr-only" for="judge-question">判断标准</label>
+                    <input id="judge-question" class="judge-question-input" type="text" maxlength="500" required placeholder="判断标准，例如：客户明确要求人工客服介入" disabled>
+                    <label class="sr-only" for="judge-subject">判断内容</label>
+                    <textarea id="judge-subject" rows="5" maxlength="4000" required placeholder="待判断的内容，例如：我已经反馈三次了，能让我和真人说话吗？" aria-describedby="judge-input-help" disabled></textarea>
+                    <div class="input-meta"><span id="judge-input-help">也可以从下方选择一个示例</span><span><span id="judge-character-count">0</span> / 4000</span></div>
+                    <div class="composer-actions"><button id="judge-clear" type="button" class="quiet-button" disabled>清空</button><div class="submit-group"><span class="shortcut">⌘ / Ctrl + Enter</span><button id="judge-submit" type="submit" class="primary-button" disabled><span id="judge-submit-label">开始判断</span><span id="judge-submit-arrow" aria-hidden="true">↗</span><span id="judge-submit-spinner" class="spinner" hidden></span></button></div></div>
+                </form>
+            </section>
+            <section class="panel preset-panel" aria-labelledby="judge-preset-title">
+                <div class="section-heading"><div class="heading-with-count"><h2 id="judge-preset-title">试试这些判断</h2><span id="judge-preset-count" class="count-label">—</span></div></div>
+                <div id="judge-presets" class="preset-list" aria-label="预设判断"></div>
+                <div class="preset-footer">选择示例后，点击“开始判断”查看真实概率。</div>
+            </section>
+            <p class="demo-note">演示只返回判断概率与分支结果，不会执行其他操作。</p>
+        </div>
+        <section id="judge-result-panel" class="panel result-panel" aria-labelledby="judge-result-title" tabindex="-1">
+            <div class="section-heading result-heading"><h2 id="judge-result-title">判断结果</h2><span id="judge-result-status" class="result-status">等待输入</span></div>
+            <div id="judge-empty-result" class="empty-result">
+                <div class="empty-flow" aria-hidden="true"><span class="flow-square">输入</span><span class="connector">→</span><span class="flow-square decision-square">判断</span><span class="connector">→</span><span class="flow-square">是 / 否</span></div>
+                <h3>这个命题，成立吗？</h3><p>Jev 给出命题成立的概率，流程按阈值走进「是」或「否」分支。<br>运行后，概率与执行路径会展示在这里。</p>
+                <div class="empty-footer"><span class="fallback-line"></span>概率接近阈值时，应视为不确定<span class="fallback-line"></span></div>
+            </div>
+            <div id="judge-loading-result" class="loading-result" role="status" hidden><span class="large-spinner" aria-hidden="true"></span><h3>正在判断命题</h3><p>等待 Jev 返回“是”的概率…</p><p id="judge-loading-elapsed" class="loading-elapsed">已等待 0.0 s</p></div>
+            <div id="judge-error-result" class="error-result" role="alert" hidden><span class="error-mark" aria-hidden="true">!</span><h3>这次判断没有完成</h3><p id="judge-error-message"></p><p class="error-hint">输入已保留，可以点击“重新判断”再试一次。</p></div>
+            <div id="judge-completed-result" hidden>
+                <div class="decision-summary"><div class="route-summary"><span class="section-caption">判断结论</span><div class="route-title"><span id="judge-verdict-code" class="service-code"></span><h3 id="judge-verdict"></h3></div><p id="judge-decision-reason" class="decision-reason"></p></div><div class="confidence-stat"><span class="section-caption">“是”的概率</span><div><strong id="judge-probability-value"></strong><span class="percent-sign">%</span></div><span id="judge-threshold-label"></span></div><div class="processing-stat"><span class="section-caption">处理时间</span><div><strong id="judge-processing-time-value">—</strong><span id="judge-processing-time-unit" class="time-unit"></span></div><span class="processing-caption">含 Jev 调用与流程执行</span></div></div>
+                <div class="timing-detail"><span>服务端实测处理时间</span><span id="judge-elapsed-time" class="timing"></span></div>
+                <div class="message-snapshot"><span>本次判断标准</span><p id="judge-submitted-question"></p></div>
+                <section class="probability-section" aria-labelledby="judge-probability-title"><div class="section-heading"><h3 id="judge-probability-title">成立概率</h3><span class="subtle-label">模型原始值</span></div><div class="probability-list"><div class="probability-row selected"><span class="probability-label">是</span><div class="probability-track" aria-hidden="true"><div id="judge-probability-fill" class="probability-fill"></div></div><span id="judge-probability-text" class="probability-value"></span></div></div><p class="confidence-note">Noul 只返回“是”的概率，概率本身同时表达答案与确定程度；接近阈值时，应把它当作不确定。</p></section>
+                <section class="trace-section" aria-labelledby="judge-trace-title"><div class="section-heading"><h3 id="judge-trace-title">执行路径</h3></div><ol id="judge-execution-trace" class="execution-trace"></ol></section>
+                <section class="reply-section" aria-labelledby="judge-reply-title"><div class="reply-header"><span class="reply-indicator" aria-hidden="true"></span><h3 id="judge-reply-title">组件回复</h3><span class="subtle-label">演示处理结果</span></div><p id="judge-component-reply"></p></section>
+                <details id="judge-raw-details" class="raw-result"><summary>查看详细结果 <span aria-hidden="true">+</span></summary><pre id="judge-raw-json"></pre></details>
+            </div>
+        </section>
+    </div>
+    <footer class="workspace-footer"><span>从一个命题，到一个分支。</span><span id="judge-footer-meta">判断配置加载中</span></footer>
+</main>
+<main id="custom-page" class="workspace page-face" aria-hidden="true" inert hidden>
     <section class="page-intro">
         <div><p class="eyebrow">自由决策 · 你的判断标准</p><h1>问题由你定义，选项由你决定。</h1><p class="intro-copy">写下问题，列出选项，让 Jev 帮你做出选择。</p></div>
         <div class="runtime-label"><span class="status-dot" aria-hidden="true"></span><span id="custom-runtime-status">正在加载配置</span><code id="custom-model-name">Jev Choice</code></div>
@@ -89,6 +137,7 @@
 </div></div>
 <div id="announcement" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 <script type="module" src="/app.mjs"></script>
+<script type="module" src="/judge.mjs"></script>
 <script type="module" src="/custom.mjs"></script>
 <script type="module" src="/page-switch.mjs"></script>
 </body>

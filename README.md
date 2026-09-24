@@ -10,16 +10,16 @@
 | [liteflow-agent-web-local-mysql](liteflow-agent-web-local-mysql/README.md) | `LocalMysqlAgentApplication` | Agent 在宿主机执行，Docker Compose 启动 MySQL 保存会话、工作区文件、记忆与附件，端口 8903 |
 | [liteflow-agent-web-local-redis](liteflow-agent-web-local-redis/README.md) | `LocalRedisAgentApplication` | Agent 在宿主机执行，Docker Compose 启动 Redis 保存会话、工作区文件、记忆与附件，端口 8904 |
 | [liteflow-agent-web-local-json](liteflow-agent-web-local-json/README.md) | `LocalJsonAgentApplication` | Agent 在宿主机执行，本地 JSON 与目录保存数据，无需数据库或 Docker，端口 8905 |
-| [liteflow-agent-jev-switch](liteflow-agent-jev-switch/README.md) | `JevSwitchApplication` | 客服分流与自由决策翻转页面、14 条客服预设、可自定义问题和选项，展示置信度、概率和执行路径，端口 8906 |
+| [liteflow-agent-jev](liteflow-agent-jev/README.md) | `JevApplication` | 客服分流、是非判断与自由决策三个翻转页面、14 条客服预设、可自定义问题、选项和判断标准，展示置信度、概率和执行路径，端口 8906 |
 
-各模块均包含完整源码，可独立构建和运行。六个 Web 聊天示例之外，Jev 示例提供独立的客服分流页面与 HTTP 接口，支持 Jev 官方接口与 OpenRouter。官方入口配置 `JEV_API_KEY`；OpenRouter 入口启用 `openrouter` profile 并配置 `OPENROUTER_API_KEY`，无需数据库、Docker 或聊天模型凭据。三个 `web-container-*` 模块的 HTML、CSS、前端脚本与 MySQL 示例一致，包括会话搜索、历史加载、深浅色切换、流式思考与工具详情、容器状态和附件下载。
+各模块均包含完整源码，可独立构建和运行。六个 Web 聊天示例之外，Jev 示例提供独立的客服分流、是非判断与自由决策页面及 HTTP 接口，支持 Jev 官方接口与 OpenRouter。官方入口配置 `JEV_API_KEY`；OpenRouter 入口启用 `openrouter` profile 并配置 `OPENROUTER_API_KEY`，无需数据库、Docker 或聊天模型凭据。三个 `web-container-*` 模块的 HTML、CSS、前端脚本与 MySQL 示例一致，包括会话搜索、历史加载、深浅色切换、流式思考与工具详情、容器状态和附件下载。
 
 各模块通过 `spring.application.name` 声明模块名。框架的 `liteflow.agent.application-name` 默认沿用该名称隔离 Agent 数据，`liteflow.agent.execution-timeout` 默认是 10 分钟；示例省略这两项 Agent 配置。
 
 ## 环境
 
 - JDK 17、Maven。
-- LiteFlow `2.16.2`、Spring Boot `4.0.6`，版本统一在根目录 `pom.xml` 管理。
+- LiteFlow `2.16.3`、Spring Boot `4.0.6`，版本统一在根目录 `pom.xml` 管理。
 - `web-container-*` 模块运行需要 Docker、`liteflow-agent-sandbox:node22` 镜像和 DeepSeek API Key，默认模型为 `deepseek-flash`。MySQL／Redis 模块另需对应数据库，JSON 模块无需数据库。
 - `web-local-*` 模块使用 `GUARDED_LOCAL`，Agent 在宿主机执行，无需沙箱镜像。MySQL／Redis 默认使用各模块提供的 Docker Compose 启动，也可连接已有服务；`local-json` 无需 Docker。所有 HarnessAgentComponent 组件的 `enableShellTool()` 默认返回 `true`；三个本地模块已配置固定的 `harness.local.workspace-root`，支持宿主机 Shell／Python／Node、文件工具与附件交付，默认禁用子 Agent。
 
@@ -157,12 +157,12 @@ mvn -pl liteflow-agent-web-container-mysql spring-boot:run
 
 ## AgentScope 2.0.3 与生成文件
 
-本示例使用 LiteFlow 2.16.2、AgentScope 2.0.3。LiteFlow Agent 尚未正式发布时，需要先在 LiteFlow 源码仓库安装本轮升级后的包，再构建示例；仅使用旧的同版本本地 JAR 不会更新其实现。
+本示例使用 LiteFlow 2.16.3、AgentScope 2.0.3。LiteFlow Agent 尚未正式发布时，需要先在 LiteFlow 源码仓库安装本轮升级后的包，再构建示例；仅使用旧的同版本本地 JAR 不会更新其实现。
 
 在 LiteFlow 源码根目录执行：
 
 ```bash
-mvn install -pl liteflow-agent/liteflow-agent-core,liteflow-agent/liteflow-agent-openai,liteflow-agent/liteflow-agent-mysql,liteflow-agent/liteflow-agent-redis,liteflow-spring-boot4-starter -am -DskipTests
+mvn install -pl liteflow-agent/liteflow-agent-core,liteflow-agent/liteflow-agent-openai,liteflow-agent/liteflow-agent-mysql,liteflow-agent/liteflow-agent-redis,liteflow-agent/liteflow-agent-jev,liteflow-spring-boot4-starter -am -DskipTests
 ```
 
 然后使用 JDK 17 在示例根目录执行 `mvn clean package`。

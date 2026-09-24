@@ -4,8 +4,8 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class JevSwitchApplication {
+public class JevApplication {
     public static void main(String[] args) {
-        SpringApplication.run(JevSwitchApplication.class, args);
+        SpringApplication.run(JevApplication.class, args);
     }
 }

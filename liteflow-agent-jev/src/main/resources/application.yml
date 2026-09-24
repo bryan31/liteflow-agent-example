@@ -1,6 +1,6 @@
 spring:
   application:
-    name: liteflow-agent-jev-switch
+    name: liteflow-agent-jev
   config:
     import: optional:classpath:application-local.yml
 
